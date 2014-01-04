@@ -1,5 +1,7 @@
-// Adafruit_NeoMatrix example for single NeoPixel Shield.
-// Scrolls 'Howdy' across the matrix in a portrait (vertical) orientation.
+//
+// NeoPixel Pong
+//
+// Tom Kooij
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoMatrix.h>
@@ -69,10 +71,8 @@ int x,y;
 // bal snelheid
 int vx, vy;
 // x positie (korte as) van batje
-int x_bat;
-int fail;
-
-
+int x_bat_links;
+int x_bat_rechts;
 
 // Bron: Adafruit NeoPixel example (strip)
 void rainbowCycle(uint8_t wait) {
@@ -122,13 +122,16 @@ void setup() {
   y = 2;
   vx = 1;
   vy = -1;
-  x_bat=2;
-  fail=0;
+  x_bat_links=2;
+  x_bat_rechts=0;
 }
 
 
 void loop() {
    
+  // spel loop
+  while (1) {
+    
     nunchuk.update();
 
     Serial.print(nunchuk.analogX, DEC);
@@ -163,9 +166,11 @@ void loop() {
      x += vx;
      y += vy;
      
-     // weerkaats tegen de muren
-     if (y>=7) { if ((x_bat==x) || ((x_bat+1)==x))  vy = -vy; else fail = 1;}
+     // controleer of het batje op de juiste plaats staat. JA: weerkaats. NEE: verlaat spel
+     if (y>=7) { if ((x_bat_rechts==x) || ((x_bat_rechts+1)==x))  vy = -vy; else break; }
      if (y<=0) vy = -vy;
+
+     // weerkaats tegen de muren
      if (x>=4) vx = -vx;
      if (x<=0) vx = -vx;
      
@@ -176,21 +181,23 @@ void loop() {
      matrix.drawPixel(x,y,colors[ROOD]);
      
      // batjes
-     matrix.drawPixel(x_bat,0,colors[GROEN]);
-     matrix.drawPixel(x_bat+1,0,colors[GROEN]);
-     matrix.drawPixel(x_bat,7,colors[GROEN]);
-     matrix.drawPixel(x_bat+1,7,colors[GROEN]);
-        
-     if (fail) {
-       // laat rood scherm zien en stop
-       matrix.fillScreen(colors[ROOD]);
-       matrix.show();
-       delay(3000);
-            
-       while (1) rainbowCycle(20) ;
-     }
+     matrix.drawPixel(x_bat_links,0,colors[GROEN]);
+     matrix.drawPixel(x_bat_links+1,0,colors[GROEN]);
+     matrix.drawPixel(x_bat_rechts,7,colors[GROEN]);
+     matrix.drawPixel(x_bat_rechts+1,7,colors[GROEN]);
+     
      // OUTPUT!
      matrix.show();
      delay(200);
-  
+    
+  }     
+     
+  // laat rood scherm zien en stop
+  matrix.fillScreen(colors[ROOD]);
+  matrix.show();
+  delay(3000);
+            
+  // demo de neopixels          
+  rainbowCycle(20) ;
+  // start het spel opnieuw 
 }
