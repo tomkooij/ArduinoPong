@@ -62,9 +62,11 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(5, 8, PIN,
 #define ROOD 0
 #define GROEN 1
 #define BLAUW 2
+#define WIT 3
+#define ZWART 4
 
 const uint16_t colors[] = {
-  matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255) };
+  matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255), matrix.Color(255,255,255), matrix.Color(0,0,0) };
 
 // bal positie
 int x,y;
@@ -99,13 +101,22 @@ uint32_t Wheel(byte WheelPos) {
    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
   }
 }
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, c);
+      strip.show();
+      delay(wait);
+  }
+}
 
 
 void setup() {
   
-  // voor het eindeffect
+  // intro
   strip.begin();
-  
+  colorWipe(strip.Color(0, 0, 20), 50); // Blauw 20/255 brightness
+
   // nunchuck aangesloten op SCLK/SDA/AREF/GND aan de kant van de RST van de Arduino UNO
   Serial.begin(BAUDRATE);
   Serial.write("Hello... now setting up the Nunchuck (port A4/A5)!\n");
@@ -115,20 +126,25 @@ void setup() {
 
   // bitmap (framebuffer) setup
   matrix.begin();
-  matrix.setBrightness(10);
+  matrix.setBrightness(10);  
+  x_bat_links=1;
+  x_bat_rechts=2;
+}
+
+int c,k, score;
+
+void loop() {
   
   // startpositie 
   x = 2;
-  y = 2;
-  vx = 1;
-  vy = -1;
-  x_bat_links=2;
-  x_bat_rechts=0;
-}
-
-
-void loop() {
-   
+  y = 3;
+  vx = -1;
+  vy = 1;
+ 
+//  score = 0;
+  
+  // intro
+  
   // spel loop
   while (1) {
     
@@ -167,8 +183,8 @@ void loop() {
      y += vy;
      
      // controleer of het batje op de juiste plaats staat. JA: weerkaats. NEE: verlaat spel
-     if (y>=7) { if ((x_bat_rechts==x) || ((x_bat_rechts+1)==x))  vy = -vy; else break; }
-     if (y<=0) vy = -vy;
+     if (y>=7) { if ((x_bat_rechts==x) || ((x_bat_rechts+1)==x))  { vy = -vy; score++; } else break; }
+     if (y<=0) { if ((x_bat_links==x) || ((x_bat_links+1)==x))  { vy = -vy; score++; } else break; }
 
      // weerkaats tegen de muren
      if (x>=4) vx = -vx;
@@ -195,9 +211,30 @@ void loop() {
   // laat rood scherm zien en stop
   matrix.fillScreen(colors[ROOD]);
   matrix.show();
-  delay(3000);
+  
+  // scorebord in binair
+  for (c = 5; c >= 0; c--)
+  {
+    k = score >> c;
+ 
+    if (k & 1)
+      matrix.drawPixel(2,6-c,colors[WIT]);  // "1" is wit 
+    else
+      matrix.drawPixel(2,6-c,colors[ZWART]);;  // "0" is zwart
+    
+    delay(200);
+    matrix.show();
+  }
+ 
+  delay(4000);
             
   // demo de neopixels          
-  rainbowCycle(20) ;
-  // start het spel opnieuw 
+  //rainbowCycle(20) ;
+ 
+ 
+  // start het spel opnieuw  
+  x_bat_links++;
+  x_bat_rechts--;
+  if (x_bat_links>=4) x_bat_links=0;
+  if (x_bat_rechts<=0) x_bat_rechts=3;
 }
