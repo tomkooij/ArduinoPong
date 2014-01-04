@@ -17,6 +17,16 @@ ArduinoNunchuk nunchuk = ArduinoNunchuk();
 
 #define PIN 6
 
+// Parameter 1 = number of pixels in strip
+// Parameter 2 = pin number (most are valid)
+// Parameter 3 = pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(40, PIN, NEO_GRB + NEO_KHZ800);
+
+
 // MATRIX DECLARATION:
 // Parameter 1 = width of NeoPixel matrix
 // Parameter 2 = height of matrix
@@ -54,13 +64,51 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(5, 8, PIN,
 const uint16_t colors[] = {
   matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255) };
 
+// bal positie
 int x,y;
+// bal snelheid
+int vx, vy;
+// x positie (korte as) van batje
+int x_bat;
+int fail;
+
+
+
+// Bron: Adafruit NeoPixel example (strip)
+void rainbowCycle(uint8_t wait) {
+  uint16_t i, j;
+
+  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
+    for(i=0; i< strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+    }
+    strip.show();
+    delay(wait);
+  }
+}
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  if(WheelPos < 85) {
+   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else if(WheelPos < 170) {
+   WheelPos -= 85;
+   return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else {
+   WheelPos -= 170;
+   return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+}
+
 
 void setup() {
   
+  // voor het eindeffect
+  strip.begin();
+  
   // nunchuck aangesloten op SCLK/SDA/AREF/GND aan de kant van de RST van de Arduino UNO
   Serial.begin(BAUDRATE);
-  Serial.write("Hello... now setting up the Nunchuck (port A4/A5)!\n")
+  Serial.write("Hello... now setting up the Nunchuck (port A4/A5)!\n");
   
   nunchuk.init();
   Serial.write("Init done!\n ");
@@ -69,10 +117,13 @@ void setup() {
   matrix.begin();
   matrix.setBrightness(10);
   
-  // startpositie piel
+  // startpositie 
   x = 2;
   y = 2;
-  
+  vx = 1;
+  vy = -1;
+  x_bat=2;
+  fail=0;
 }
 
 
@@ -83,7 +134,8 @@ void loop() {
     Serial.print(nunchuk.analogX, DEC);
     Serial.print(' ');
     Serial.println(nunchuk.analogY, DEC);
- 
+
+/* oude code om balletje te sturen 
      // x is de korte zijde x = 0 is aan de reset/pwr kant
      // y is de lange zijde y = 0 is aan de reset kant
      if (nunchuk.analogX<40) {  // links
@@ -105,14 +157,40 @@ void loop() {
           if (x==4) x = 0;
           x++;
      }
+*/     
      
-     Serial.write("coordinaten ");
-     Serial.print(x, DEC);
-     Serial.println(y, DEC); 
-          
-          matrix.fillScreen(colors[BLAUW]);
-          matrix.drawPixel(x,y,colors[ROOD]);
-          matrix.show();
-          delay(40);
+     // verplaatsing
+     x += vx;
+     y += vy;
+     
+     // weerkaats tegen de muren
+     if (y>=7) { if ((x_bat==x) || ((x_bat+1)==x))  vy = -vy; else fail = 1;}
+     if (y<=0) vy = -vy;
+     if (x>=4) vx = -vx;
+     if (x<=0) vx = -vx;
+     
+     // achtergrond     
+     matrix.fillScreen(colors[BLAUW]);
+    
+     // bal
+     matrix.drawPixel(x,y,colors[ROOD]);
+     
+     // batjes
+     matrix.drawPixel(x_bat,0,colors[GROEN]);
+     matrix.drawPixel(x_bat+1,0,colors[GROEN]);
+     matrix.drawPixel(x_bat,7,colors[GROEN]);
+     matrix.drawPixel(x_bat+1,7,colors[GROEN]);
+        
+     if (fail) {
+       // laat rood scherm zien en stop
+       matrix.fillScreen(colors[ROOD]);
+       matrix.show();
+       delay(3000);
+            
+       while (1) rainbowCycle(20) ;
+     }
+     // OUTPUT!
+     matrix.show();
+     delay(200);
   
 }
